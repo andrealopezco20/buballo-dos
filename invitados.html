@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitados | BUBALLO EVENTS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="app-page guest-page">
+  <header class="guest-header">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">BE</span>
+      <span>BUBALLO EVENTS</span>
+    </a>
+    <a class="btn btn-secondary compact" href="login.html">Administrador</a>
+  </header>
+
+  <main class="guest-main">
+    <section class="guest-intro">
+      <p class="eyebrow">Modo invitado</p>
+      <h1>Calendario público de eventos</h1>
+      <p>Consulta eventos oficiales, busca por nombre o filtra por clan, categoría y estado.</p>
+    </section>
+
+    <section class="filters-bar">
+      <input id="searchInput" type="search" placeholder="Buscar eventos">
+      <select id="statusFilter">
+        <option value="">Todos los estados</option>
+        <option>Próximo</option>
+        <option>En curso</option>
+        <option>Finalizado</option>
+        <option>Cancelado</option>
+      </select>
+    </section>
+
+    <section class="guest-layout">
+      <section class="surface">
+        <div class="calendar-toolbar">
+          <button class="icon-btn" id="prevMonth" aria-label="Mes anterior">&lt;</button>
+          <h2 id="calendarTitle">Calendario</h2>
+          <button class="icon-btn" id="nextMonth" aria-label="Mes siguiente">&gt;</button>
+        </div>
+        <div class="calendar-grid weekdays">
+          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+      <aside class="surface">
+        <h2>Eventos</h2>
+        <div id="guestEventList" class="event-list"></div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="eventModal" aria-hidden="true">
+    <article class="modal">
+      <button class="modal-close" id="closeModal" aria-label="Cerrar">×</button>
+      <div id="modalContent"></div>
+    </article>
+  </div>
+  <script src="js/app.js"></script>
+</body>
+</html>

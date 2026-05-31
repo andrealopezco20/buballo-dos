@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Admin | BUBALLO EVENTS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <a class="brand auth-brand" href="index.html">
+      <span class="brand-mark">BE</span>
+      <span>BUBALLO EVENTS</span>
+    </a>
+    <section class="auth-card">
+      <p class="eyebrow">Acceso único</p>
+      <h1>Panel Administrativo</h1>
+      <form id="loginForm" class="stack-form">
+        <label>
+          Usuario
+          <input type="text" name="usuario" autocomplete="username" required placeholder="Staff">
+        </label>
+        <label>
+          Contraseña
+          <input type="password" name="password" autocomplete="current-password" required placeholder="*******">
+        </label>
+        <p id="loginMessage" class="form-message" role="alert"></p>
+        <button class="btn btn-primary" type="submit">Ingresar</button>
+        <a class="ghost-link" href="invitados.html">Continuar como invitado</a>
+      </form>
+    </section>
+  </main>
+  <script src="js/app.js"></script>
+</body>
+</html>

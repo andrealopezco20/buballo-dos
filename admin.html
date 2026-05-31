@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario Admin | BUBALLO EVENTS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="app-page admin-page">
+  <header class="guest-header admin-header">
+    <a class="brand" href="admin.html">
+      <span class="brand-mark">BE</span>
+      <span>BUBALLO EVENTS</span>
+    </a>
+    <div class="admin-actions">
+      <a class="btn btn-secondary compact" href="invitados.html">Vista invitado</a>
+      <button class="btn btn-secondary compact danger-btn" id="logoutBtn" type="button">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main class="guest-main admin-calendar-main">
+    <section class="guest-intro compact-intro">
+      <p class="eyebrow">Modo administrador</p>
+      <h1>Calendario</h1>
+      <p>Administra los eventos oficiales desde una sola pantalla. Los invitados verán los cambios desde el calendario público.</p>
+    </section>
+
+    <section class="admin-calendar-layout">
+      <section class="surface calendar-surface">
+        <div class="calendar-toolbar">
+          <button class="icon-btn" id="prevMonth" aria-label="Mes anterior">&lt;</button>
+          <h2 id="calendarTitle">Calendario</h2>
+          <button class="icon-btn" id="nextMonth" aria-label="Mes siguiente">&gt;</button>
+        </div>
+        <div class="calendar-grid weekdays">
+          <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+      </section>
+
+      <aside class="surface admin-event-panel">
+        <div class="section-head">
+          <h2 id="eventFormTitle">Crear evento</h2>
+          <button class="btn btn-secondary compact" id="resetEventForm" type="button">Nuevo</button>
+        </div>
+        <form id="eventForm" class="stack-form">
+          <input type="hidden" name="id">
+          <label>Nombre del evento <input name="nombre" required></label>
+          <label>Clan organizador <input name="clan" required placeholder="Escribe el nombre del clan"></label>
+          <div class="two-cols">
+            <label>Fecha <input name="fecha" type="date" required></label>
+            <label>Hora <input name="hora" type="time" required></label>
+          </div>
+          <label>Descripción <textarea name="descripcion" rows="3" required></textarea></label>
+          <label>Estado
+            <select name="estado" required>
+              <option>Próximo</option>
+              <option>En curso</option>
+              <option>Finalizado</option>
+              <option>Cancelado</option>
+            </select>
+          </label>
+          <label class="check-row"><input name="destacado" type="checkbox"> Evento destacado</label>
+          <button class="btn btn-primary" type="submit">Guardar evento</button>
+          <p id="eventMessage" class="form-message"></p>
+        </form>
+
+        <div class="admin-event-list-head">
+          <h2>Eventos</h2>
+        </div>
+        <div id="adminEventList" class="admin-list"></div>
+      </aside>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="eventModal" aria-hidden="true">
+    <article class="modal">
+      <button class="modal-close" id="closeModal" aria-label="Cerrar">×</button>
+      <div id="modalContent"></div>
+    </article>
+  </div>
+  <script src="js/app.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

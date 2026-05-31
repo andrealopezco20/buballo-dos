@@ -1,0 +1,16 @@
+{
+  "name": "buballo-events",
+  "version": "1.0.0",
+  "description": "Calendario oficial de eventos para la comunidad BUBALLO EVENTS.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
