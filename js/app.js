@@ -174,11 +174,18 @@ const Buballo = (() => {
       const message = document.getElementById("loginMessage");
       const payload = Object.fromEntries(new FormData(form));
       try {
+        // Intenta autenticar contra el backend si está disponible
         await api.send("/api/login", "POST", payload);
         sessionStorage.setItem("buballoAdmin", "true");
         window.location.href = "admin.html";
       } catch (error) {
-        message.textContent = error.message;
+        // Fallback rápido e inseguro para GitHub Pages u entornos sin servidor
+        if (payload.usuario === "admin" && payload.password === "12345678") {
+          sessionStorage.setItem("buballoAdmin", "true");
+          window.location.href = "admin.html";
+        } else {
+          message.textContent = "Credenciales incorrectas (o servidor no disponible)";
+        }
       }
     });
   }
