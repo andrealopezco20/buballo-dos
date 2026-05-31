@@ -1,26 +1,180 @@
 const Buballo = (() => {
+  const config = window.BUBALLO_CONFIG || {};
+  const localStoreKey = "buballo_eventos";
+
+  const supabase = {
+    enabled: Boolean(config.supabaseUrl && config.supabaseAnonKey)
+      && !String(config.supabaseUrl).includes("PEGA_AQUI")
+      && !String(config.supabaseAnonKey).includes("PEGA_AQUI"),
+    baseUrl: String(config.supabaseUrl || "").replace(/\/+$/, ""),
+    anonKey: String(config.supabaseAnonKey || "")
+  };
+
   const state = {
     eventos: [],
     calendarDate: new Date()
   };
 
+  function makeId(prefix, value) {
+    const slug = String(value || "item")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 42);
+    return `${prefix}-${slug || "item"}-${Date.now().toString(36)}`;
+  }
+
+  function supabaseHeaders(extra = {}) {
+    return {
+      apikey: supabase.anonKey,
+      Authorization: `Bearer ${supabase.anonKey}`,
+      ...extra
+    };
+  }
+
+  async function parseError(response, fallbackMessage) {
+    const data = await response.json().catch(() => null);
+    const message = data?.message || data?.error_description || data?.error || fallbackMessage;
+    throw new Error(message);
+  }
+
+  function readLocalEvents() {
+    try {
+      const raw = localStorage.getItem(localStoreKey);
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeLocalEvents(events) {
+    localStorage.setItem(localStoreKey, JSON.stringify(events));
+  }
+
+  function normalizeEventoInput(body, existingId = null) {
+    return {
+      id: existingId || body.id || makeId("evt", body.nombre),
+      nombre: String(body.nombre || "").trim(),
+      clan: String(body.clan || "").trim(),
+      clanColor: body.clanColor || colorFromText(body.clan),
+      categoria: body.categoria || "General",
+      fecha: body.fecha,
+      hora: body.hora,
+      descripcion: String(body.descripcion || "").trim(),
+      lugar: body.lugar || "Bubaloo",
+      estado: body.estado,
+      destacado: Boolean(body.destacado)
+    };
+  }
+
+  async function supabaseListEventos() {
+    const url = `${supabase.baseUrl}/rest/v1/eventos?select=*&order=fecha.asc,hora.asc`;
+    const response = await fetch(url, {
+      headers: supabaseHeaders({
+        Accept: "application/json"
+      }),
+      cache: "no-store"
+    });
+    if (!response.ok) return parseError(response, "No se pudieron cargar los eventos");
+    return response.json();
+  }
+
+  async function supabaseCreateEvento(body) {
+    const payload = normalizeEventoInput(body);
+    const response = await fetch(`${supabase.baseUrl}/rest/v1/eventos`, {
+      method: "POST",
+      headers: supabaseHeaders({
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      }),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) return parseError(response, "No se pudo crear el evento");
+    const rows = await response.json();
+    return rows[0] || payload;
+  }
+
+  async function supabaseUpdateEvento(id, body) {
+    const payload = normalizeEventoInput(body, id);
+    const response = await fetch(`${supabase.baseUrl}/rest/v1/eventos?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: supabaseHeaders({
+        "Content-Type": "application/json",
+        Prefer: "return=representation"
+      }),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) return parseError(response, "No se pudo actualizar el evento");
+    const rows = await response.json();
+    return rows[0] || payload;
+  }
+
+  async function supabaseDeleteEvento(id) {
+    const response = await fetch(`${supabase.baseUrl}/rest/v1/eventos?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: supabaseHeaders({
+        Prefer: "return=minimal"
+      })
+    });
+    if (!response.ok) return parseError(response, "No se pudo eliminar el evento");
+    return null;
+  }
+
   const api = {
     async get(path) {
-      const response = await fetch(path, { cache: "no-store" });
-      if (!response.ok) throw new Error("No se pudieron cargar los datos");
-      return response.json();
+      if (path === "/api/eventos") {
+        if (supabase.enabled) return supabaseListEventos();
+        return readLocalEvents();
+      }
+      throw new Error("Ruta no soportada en modo estático");
     },
     async send(path, method, body) {
-      const response = await fetch(path, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Error de servidor" }));
-        throw new Error(error.message || "Error de servidor");
+      if (path === "/api/login" && method === "POST") {
+        const adminUser = config.adminUser || "admin";
+        const adminPassword = config.adminPassword || "12345678";
+        if (body?.usuario === adminUser && body?.password === adminPassword) {
+          return { ok: true, role: "admin" };
+        }
+        throw new Error("Credenciales incorrectas");
       }
-      return response.status === 204 ? null : response.json();
+
+      const eventIdMatch = path.match(/^\/api\/eventos\/([^/]+)$/);
+
+      if (path === "/api/eventos" && method === "POST") {
+        if (supabase.enabled) return supabaseCreateEvento(body || {});
+        const events = readLocalEvents();
+        const nuevo = normalizeEventoInput(body || {});
+        events.push(nuevo);
+        writeLocalEvents(events);
+        return nuevo;
+      }
+
+      if (eventIdMatch && method === "PUT") {
+        const id = eventIdMatch[1];
+        if (supabase.enabled) return supabaseUpdateEvento(id, body || {});
+        const events = readLocalEvents();
+        const index = events.findIndex((evento) => evento.id === id);
+        if (index === -1) throw new Error("Evento no encontrado");
+        const updated = normalizeEventoInput(body || {}, id);
+        events[index] = updated;
+        writeLocalEvents(events);
+        return updated;
+      }
+
+      if (eventIdMatch && method === "DELETE") {
+        const id = eventIdMatch[1];
+        if (supabase.enabled) return supabaseDeleteEvento(id);
+        const events = readLocalEvents();
+        const next = events.filter((evento) => evento.id !== id);
+        if (next.length === events.length) throw new Error("Evento no encontrado");
+        writeLocalEvents(next);
+        return null;
+      }
+
+      throw new Error("Operación no soportada");
     }
   };
 
