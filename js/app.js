@@ -10,6 +10,16 @@ const Buballo = (() => {
     anonKey: String(config.supabaseAnonKey || "")
   };
 
+  const back4app = {
+    enabled: Boolean(config.back4appAppId && config.back4appRestApiKey)
+      && !String(config.back4appAppId).includes("PEGA_AQUI")
+      && !String(config.back4appRestApiKey).includes("PEGA_AQUI"),
+    apiUrl: String(config.back4appApiUrl || "https://parseapi.back4app.com").replace(/\/+$/, ""),
+    appId: String(config.back4appAppId || ""),
+    restApiKey: String(config.back4appRestApiKey || ""),
+    className: String(config.back4appClassName || "eventos")
+  };
+
   const state = {
     eventos: [],
     calendarDate: new Date()
@@ -30,6 +40,14 @@ const Buballo = (() => {
     return {
       apikey: supabase.anonKey,
       Authorization: `Bearer ${supabase.anonKey}`,
+      ...extra
+    };
+  }
+
+  function back4appHeaders(extra = {}) {
+    return {
+      "X-Parse-Application-Id": back4app.appId,
+      "X-Parse-REST-API-Key": back4app.restApiKey,
       ...extra
     };
   }
@@ -68,6 +86,91 @@ const Buballo = (() => {
       estado: body.estado,
       destacado: Boolean(body.destacado)
     };
+  }
+
+  function normalizeBack4AppRow(row) {
+    return {
+      id: row.objectId,
+      nombre: String(row.nombre || row.name || "").trim(),
+      clan: String(row.clan || "").trim(),
+      clanColor: row.clanColor || colorFromText(row.clan),
+      categoria: row.categoria || "General",
+      fecha: row.fecha,
+      hora: row.hora,
+      descripcion: String(row.descripcion || "").trim(),
+      lugar: row.lugar || "Bubaloo",
+      estado: row.estado || "Próximo",
+      destacado: Boolean(row.destacado)
+    };
+  }
+
+  function toBack4AppPayload(body) {
+    const normalized = normalizeEventoInput(body || {});
+    return {
+      name: normalized.nombre,
+      nombre: normalized.nombre,
+      clan: normalized.clan,
+      clanColor: normalized.clanColor,
+      categoria: normalized.categoria,
+      fecha: normalized.fecha,
+      hora: normalized.hora,
+      descripcion: normalized.descripcion,
+      lugar: normalized.lugar,
+      estado: normalized.estado,
+      destacado: normalized.destacado
+    };
+  }
+
+  async function back4appListEventos() {
+    const params = new URLSearchParams({
+      order: "fecha,hora",
+      limit: "1000"
+    });
+    const response = await fetch(`${back4app.apiUrl}/classes/${encodeURIComponent(back4app.className)}?${params.toString()}`, {
+      headers: back4appHeaders({
+        Accept: "application/json"
+      }),
+      cache: "no-store"
+    });
+    if (!response.ok) return parseError(response, "No se pudieron cargar los eventos");
+    const data = await response.json();
+    return Array.isArray(data.results) ? data.results.map(normalizeBack4AppRow) : [];
+  }
+
+  async function back4appCreateEvento(body) {
+    const payload = toBack4AppPayload(body);
+    const response = await fetch(`${back4app.apiUrl}/classes/${encodeURIComponent(back4app.className)}`, {
+      method: "POST",
+      headers: back4appHeaders({
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) return parseError(response, "No se pudo crear el evento");
+    const result = await response.json();
+    return normalizeBack4AppRow({ ...payload, objectId: result.objectId });
+  }
+
+  async function back4appUpdateEvento(id, body) {
+    const payload = toBack4AppPayload(body);
+    const response = await fetch(`${back4app.apiUrl}/classes/${encodeURIComponent(back4app.className)}/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: back4appHeaders({
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) return parseError(response, "No se pudo actualizar el evento");
+    return normalizeBack4AppRow({ ...payload, objectId: id });
+  }
+
+  async function back4appDeleteEvento(id) {
+    const response = await fetch(`${back4app.apiUrl}/classes/${encodeURIComponent(back4app.className)}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: back4appHeaders()
+    });
+    if (!response.ok) return parseError(response, "No se pudo eliminar el evento");
+    return null;
   }
 
   async function supabaseListEventos() {
@@ -126,6 +229,7 @@ const Buballo = (() => {
   const api = {
     async get(path) {
       if (path === "/api/eventos") {
+        if (back4app.enabled) return back4appListEventos();
         if (supabase.enabled) return supabaseListEventos();
         return readLocalEvents();
       }
@@ -133,9 +237,11 @@ const Buballo = (() => {
     },
     async send(path, method, body) {
       if (path === "/api/login" && method === "POST") {
-        const adminUser = config.adminUser || "admin";
-        const adminPassword = config.adminPassword || "12345678";
-        if (body?.usuario === adminUser && body?.password === adminPassword) {
+        const adminUser = String(config.adminUser || "admin").trim().toLowerCase();
+        const adminPassword = String(config.adminPassword || "12345678");
+        const inputUser = String(body?.usuario || "").trim().toLowerCase();
+        const inputPassword = String(body?.password || "");
+        if (inputUser === adminUser && inputPassword === adminPassword) {
           return { ok: true, role: "admin" };
         }
         throw new Error("Credenciales incorrectas");
@@ -144,6 +250,7 @@ const Buballo = (() => {
       const eventIdMatch = path.match(/^\/api\/eventos\/([^/]+)$/);
 
       if (path === "/api/eventos" && method === "POST") {
+        if (back4app.enabled) return back4appCreateEvento(body || {});
         if (supabase.enabled) return supabaseCreateEvento(body || {});
         const events = readLocalEvents();
         const nuevo = normalizeEventoInput(body || {});
@@ -154,6 +261,7 @@ const Buballo = (() => {
 
       if (eventIdMatch && method === "PUT") {
         const id = eventIdMatch[1];
+        if (back4app.enabled) return back4appUpdateEvento(id, body || {});
         if (supabase.enabled) return supabaseUpdateEvento(id, body || {});
         const events = readLocalEvents();
         const index = events.findIndex((evento) => evento.id === id);
@@ -166,6 +274,7 @@ const Buballo = (() => {
 
       if (eventIdMatch && method === "DELETE") {
         const id = eventIdMatch[1];
+        if (back4app.enabled) return back4appDeleteEvento(id);
         if (supabase.enabled) return supabaseDeleteEvento(id);
         const events = readLocalEvents();
         const next = events.filter((evento) => evento.id !== id);
@@ -328,18 +437,12 @@ const Buballo = (() => {
       const message = document.getElementById("loginMessage");
       const payload = Object.fromEntries(new FormData(form));
       try {
-        // Intenta autenticar contra el backend si está disponible
         await api.send("/api/login", "POST", payload);
         sessionStorage.setItem("buballoAdmin", "true");
         window.location.href = "admin.html";
       } catch (error) {
-        // Fallback rápido e inseguro para GitHub Pages u entornos sin servidor
-        if (payload.usuario === "admin" && payload.password === "12345678") {
-          sessionStorage.setItem("buballoAdmin", "true");
-          window.location.href = "admin.html";
-        } else {
-          message.textContent = "Credenciales incorrectas (o servidor no disponible)";
-        }
+        const adminHint = String(config.adminUser || "admin").trim() || "admin";
+        message.textContent = `${error.message || "No se pudo iniciar sesión"}. Usuario esperado: ${adminHint}`;
       }
     });
   }

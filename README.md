@@ -4,20 +4,21 @@ Calendario web de eventos para BUBALLO EVENTS.
 
 ## Publicar en GitHub Pages con edicion/eliminacion
 
-Este proyecto usa la opcion 2: **Supabase** desde frontend (sin servidor Node).
+Este proyecto usa Back4App (Parse REST) desde frontend, sin servidor Node.
 
-### 1) Crear tabla y politicas en Supabase
+### 1) Configurar Back4App en frontend
 
-1. Abre el SQL Editor de tu proyecto Supabase.
-2. Ejecuta el contenido de [data/supabase-schema.sql](data/supabase-schema.sql).
+1. Abre [js/config.js](js/config.js).
+2. Verifica estos valores:
+	- back4appApiUrl
+	- back4appAppId
+	- back4appRestApiKey
+	- back4appClassName (eventos)
 
 ### 2) Configurar claves en frontend
 
 1. Abre [js/config.js](js/config.js).
-2. Reemplaza:
-	- `supabaseUrl`
-	- `supabaseAnonKey`
-3. Cambia `adminUser` y `adminPassword` si quieres.
+2. Cambia adminUser y adminPassword si quieres.
 
 ### 3) Subir a GitHub Pages
 
@@ -27,5 +28,5 @@ Este proyecto usa la opcion 2: **Supabase** desde frontend (sin servidor Node).
 
 ## Notas
 
-- Si no completas [js/config.js](js/config.js), la app cae a modo local (`localStorage`) y los cambios no se comparten entre usuarios.
-- Las politicas del SQL estan abiertas para demo. Para produccion, limita acceso por autenticacion real.
+- Si Back4App no esta configurado o falla, la app cae a modo local (localStorage) y los cambios no se comparten entre usuarios.
+- Si compartiste la key de Back4App, regenerala en el panel por seguridad.
