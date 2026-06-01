@@ -2,7 +2,7 @@ window.BUBALLO_CONFIG = {
   // Back4App (Parse REST) - backend principal
   back4appApiUrl: "https://parseapi.back4app.com",
   back4appAppId: "mFNNnPzLJW60KIz0047T17TPZh6AGblUPfq0iu6Q",
-  back4appRestApiKey: "eB9JMvrALQTj2kDXNjevNIADcY1LJ6LgUMfjahOR",
+  back4appRestApiKey: "8JqMOS8slJQBmk04wfieiaAhPdlUvUUyDiJ4qXov",
   back4appClassName: "eventos",
 
   // Supabase (opcion 2)
