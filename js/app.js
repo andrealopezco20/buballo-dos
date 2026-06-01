@@ -72,6 +72,17 @@ const Buballo = (() => {
     localStorage.setItem(localStoreKey, JSON.stringify(events));
   }
 
+  async function readBundledEvents() {
+    try {
+      const response = await fetch("data/eventos.json", { cache: "no-store" });
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
   function normalizeEventoInput(body, existingId = null) {
     return {
       id: existingId || body.id || makeId("evt", body.nombre),
@@ -229,9 +240,32 @@ const Buballo = (() => {
   const api = {
     async get(path) {
       if (path === "/api/eventos") {
-        if (back4app.enabled) return back4appListEventos();
-        if (supabase.enabled) return supabaseListEventos();
-        return readLocalEvents();
+        if (back4app.enabled) {
+          try {
+            return await back4appListEventos();
+          } catch (error) {
+            console.warn("Back4App no disponible, usando almacenamiento local.", error);
+          }
+        }
+
+        if (supabase.enabled) {
+          try {
+            return await supabaseListEventos();
+          } catch (error) {
+            console.warn("Supabase no disponible, usando almacenamiento local.", error);
+          }
+        }
+
+        const localEvents = readLocalEvents();
+        if (localEvents.length) return localEvents;
+
+        const bundledEvents = await readBundledEvents();
+        if (bundledEvents.length) {
+          writeLocalEvents(bundledEvents);
+          return bundledEvents;
+        }
+
+        return [];
       }
       throw new Error("Ruta no soportada en modo estático");
     },
@@ -379,6 +413,13 @@ const Buballo = (() => {
     return { year, month, start };
   }
 
+  function formatLocalDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
   function renderCalendar(events = state.eventos) {
     const grid = document.getElementById("calendarGrid");
     const title = document.getElementById("calendarTitle");
@@ -389,7 +430,7 @@ const Buballo = (() => {
     for (let i = 0; i < 42; i += 1) {
       const current = new Date(start);
       current.setDate(start.getDate() + i);
-      const dateKey = current.toISOString().slice(0, 10);
+      const dateKey = formatLocalDateKey(current);
       const dayEvents = events.filter((evento) => evento.fecha === dateKey);
       days.push(`
         <div class="calendar-day ${current.getMonth() !== month ? "muted" : ""}">
