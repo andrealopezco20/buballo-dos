@@ -1,14 +1,24 @@
 document.addEventListener("DOMContentLoaded", async () => {
-  if (sessionStorage.getItem("buballoAdmin") !== "true") {
-    window.location.href = "login.html";
-    return;
-  }
+  try {
+    if (sessionStorage.getItem("buballoAdmin") !== "true") {
+      window.location.href = "login.html";
+      return;
+    }
 
-  await Buballo.loadData();
-  setupLogout();
-  setupEventForm();
-  Buballo.setupCalendarNavigation(() => Buballo.state.eventos);
-  renderAll();
+    await Buballo.loadData();
+    setupLogout();
+    setupEventForm();
+    Buballo.setupCalendarNavigation(() => Buballo.state.eventos);
+    renderAll();
+  } catch (err) {
+    console.error("Error en Admin init:", err);
+    const msgEl = document.getElementById("eventMessage") || document.createElement("p");
+    msgEl.id = msgEl.id || "eventMessage";
+    msgEl.className = msgEl.className || "form-message";
+    msgEl.textContent = `Error al cargar la interfaz administrativa: ${err.message || err}`;
+    const panel = document.querySelector(".admin-event-panel") || document.body;
+    if (!panel.contains(msgEl)) panel.prepend(msgEl);
+  }
 });
 
 function setupLogout() {
