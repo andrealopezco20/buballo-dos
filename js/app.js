@@ -6,18 +6,23 @@ const Buballo = (() => {
     enabled: Boolean(config.supabaseUrl && config.supabaseAnonKey)
       && !String(config.supabaseUrl).includes("PEGA_AQUI")
       && !String(config.supabaseAnonKey).includes("PEGA_AQUI"),
-    baseUrl: String(config.supabaseUrl || "").replace(/\/+$/, ""),
-    anonKey: String(config.supabaseAnonKey || "")
+    baseUrl: String(config.supabaseUrl || "").trim().replace(/\/+$/, ""),
+    anonKey: String(config.supabaseAnonKey || "").trim()
   };
 
   const back4app = {
     enabled: Boolean(config.back4appAppId && config.back4appRestApiKey)
       && !String(config.back4appAppId).includes("PEGA_AQUI")
       && !String(config.back4appRestApiKey).includes("PEGA_AQUI"),
-    apiUrl: String(config.back4appApiUrl || "https://parseapi.back4app.com").replace(/\/+$/, ""),
-    appId: String(config.back4appAppId || ""),
-    restApiKey: String(config.back4appRestApiKey || ""),
-    className: String(config.back4appClassName || "eventos")
+    apiUrl: String(config.back4appApiUrl || "https://parseapi.back4app.com").trim().replace(/\/+$/, ""),
+    appId: String(config.back4appAppId || "").trim(),
+    restApiKey: String(config.back4appRestApiKey || "").trim(),
+    className: String(config.back4appClassName || "eventos").trim()
+  };
+
+  const providers = {
+    back4appEnabled: back4app.enabled,
+    supabaseEnabled: supabase.enabled
   };
 
   const state = {
@@ -55,7 +60,9 @@ const Buballo = (() => {
   async function parseError(response, fallbackMessage) {
     const data = await response.json().catch(() => null);
     const message = data?.message || data?.error_description || data?.error || fallbackMessage;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   function readLocalEvents() {
@@ -240,18 +247,20 @@ const Buballo = (() => {
   const api = {
     async get(path) {
       if (path === "/api/eventos") {
-        if (back4app.enabled) {
+        if (providers.back4appEnabled) {
           try {
             return await back4appListEventos();
           } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.back4appEnabled = false;
             console.warn("Back4App no disponible, usando almacenamiento local.", error);
           }
         }
 
-        if (supabase.enabled) {
+        if (providers.supabaseEnabled) {
           try {
             return await supabaseListEventos();
           } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.supabaseEnabled = false;
             console.warn("Supabase no disponible, usando almacenamiento local.", error);
           }
         }
@@ -284,8 +293,22 @@ const Buballo = (() => {
       const eventIdMatch = path.match(/^\/api\/eventos\/([^/]+)$/);
 
       if (path === "/api/eventos" && method === "POST") {
-        if (back4app.enabled) return back4appCreateEvento(body || {});
-        if (supabase.enabled) return supabaseCreateEvento(body || {});
+        if (providers.back4appEnabled) {
+          try {
+            return await back4appCreateEvento(body || {});
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.back4appEnabled = false;
+            console.warn("Back4App no disponible para crear. Guardando en local.", error);
+          }
+        }
+        if (providers.supabaseEnabled) {
+          try {
+            return await supabaseCreateEvento(body || {});
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.supabaseEnabled = false;
+            console.warn("Supabase no disponible para crear. Guardando en local.", error);
+          }
+        }
         const events = readLocalEvents();
         const nuevo = normalizeEventoInput(body || {});
         events.push(nuevo);
@@ -295,8 +318,22 @@ const Buballo = (() => {
 
       if (eventIdMatch && method === "PUT") {
         const id = eventIdMatch[1];
-        if (back4app.enabled) return back4appUpdateEvento(id, body || {});
-        if (supabase.enabled) return supabaseUpdateEvento(id, body || {});
+        if (providers.back4appEnabled) {
+          try {
+            return await back4appUpdateEvento(id, body || {});
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.back4appEnabled = false;
+            console.warn("Back4App no disponible para actualizar. Usando local.", error);
+          }
+        }
+        if (providers.supabaseEnabled) {
+          try {
+            return await supabaseUpdateEvento(id, body || {});
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.supabaseEnabled = false;
+            console.warn("Supabase no disponible para actualizar. Usando local.", error);
+          }
+        }
         const events = readLocalEvents();
         const index = events.findIndex((evento) => evento.id === id);
         if (index === -1) throw new Error("Evento no encontrado");
@@ -308,8 +345,22 @@ const Buballo = (() => {
 
       if (eventIdMatch && method === "DELETE") {
         const id = eventIdMatch[1];
-        if (back4app.enabled) return back4appDeleteEvento(id);
-        if (supabase.enabled) return supabaseDeleteEvento(id);
+        if (providers.back4appEnabled) {
+          try {
+            return await back4appDeleteEvento(id);
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.back4appEnabled = false;
+            console.warn("Back4App no disponible para eliminar. Usando local.", error);
+          }
+        }
+        if (providers.supabaseEnabled) {
+          try {
+            return await supabaseDeleteEvento(id);
+          } catch (error) {
+            if (error?.status === 401 || error?.status === 403) providers.supabaseEnabled = false;
+            console.warn("Supabase no disponible para eliminar. Usando local.", error);
+          }
+        }
         const events = readLocalEvents();
         const next = events.filter((evento) => evento.id !== id);
         if (next.length === events.length) throw new Error("Evento no encontrado");
