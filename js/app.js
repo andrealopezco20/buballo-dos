@@ -11,12 +11,14 @@ const Buballo = (() => {
   };
 
   const back4app = {
-    enabled: Boolean(config.back4appAppId && config.back4appRestApiKey)
+    enabled: Boolean(config.back4appAppId && (config.back4appRestApiKey || config.back4appJavaScriptKey))
       && !String(config.back4appAppId).includes("PEGA_AQUI")
-      && !String(config.back4appRestApiKey).includes("PEGA_AQUI"),
+      && !String(config.back4appRestApiKey || "").includes("PEGA_AQUI")
+      && !String(config.back4appJavaScriptKey || "").includes("PEGA_AQUI"),
     apiUrl: String(config.back4appApiUrl || "https://parseapi.back4app.com").trim().replace(/\/+$/, ""),
     appId: String(config.back4appAppId || "").trim(),
     restApiKey: String(config.back4appRestApiKey || "").trim(),
+    javascriptKey: String(config.back4appJavaScriptKey || "").trim(),
     className: String(config.back4appClassName || "eventos").trim()
   };
 
@@ -50,11 +52,13 @@ const Buballo = (() => {
   }
 
   function back4appHeaders(extra = {}) {
-    return {
+    const headers = {
       "X-Parse-Application-Id": back4app.appId,
-      "X-Parse-REST-API-Key": back4app.restApiKey,
       ...extra
     };
+    if (back4app.restApiKey) headers["X-Parse-REST-API-Key"] = back4app.restApiKey;
+    if (back4app.javascriptKey) headers["X-Parse-JavaScript-Key"] = back4app.javascriptKey;
+    return headers;
   }
 
   async function parseError(response, fallbackMessage) {
